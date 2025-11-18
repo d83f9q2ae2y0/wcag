@@ -1,0 +1,456 @@
+import React, { useState, useEffect } from 'react';
+import { Lock, Globe, X, ZoomIn, AlertCircle, Loader2 } from 'lucide-react';
+
+const BookImagesDisplay = ({ bookId }) => {
+  const [book, setBook] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
+
+  useEffect(() => {
+    fetchBook();
+  }, [bookId]);
+
+  const fetchBook = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/books/${bookId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch book');
+      }
+
+      const data = await response.json();
+      setBook(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageError = (imageId) => {
+    setImageErrors(prev => ({ ...prev, [imageId]: true }));
+  };
+
+  const handleImageClick = (image) => {
+    if (!image.accessDenied && image.url) {
+      setSelectedImage(image);
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedImage(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-600">Loading book images...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+        <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
+        <span className="text-red-800">{error}</span>
+      </div>
+    );
+  }
+
+  if (!book) {
+    return null;
+  }
+
+  const publicImages = book.images.filter(img => img.visibility === 'public');
+  const privateImages = book.images.filter(img => img.visibility === 'private');
+
+  const ImageCard = ({ image }) => {
+    const hasError = imageErrors[image.id];
+    const isAccessDenied = image.accessDenied;
+
+    return (
+      <div className="relative group bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+        <div className="aspect-square relative bg-gray-100">
+          {isAccessDenied ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+              <Lock className="w-12 h-12 mb-2" />
+              <span className="text-sm font-medium">Access Denied</span>
+              <span className="text-xs mt-1 px-3 text-center">
+                You don't have permission to view this image
+              </span>
+            </div>
+          ) : hasError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+              <AlertCircle className="w-12 h-12 mb-2" />
+              <span className="text-sm font-medium">Failed to Load</span>
+            </div>
+          ) : (
+            <>
+              <img
+                src={image.url}
+                alt={image.originalFilename}
+                className="w-full h-full object-cover"
+                onError={() => handleImageError(image.id)}
+                loading="lazy"
+              />
+              {!isAccessDenied && (
+                <button
+                  onClick={() => handleImageClick(image)}
+                  className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
+                  aria-label="View full size"
+                >
+                  <ZoomIn className="w-8 h-8 text-white" />
+                </button>
+              )}
+            </>
+          )}
+        </div>
+        
+        <div className="p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-700 truncate flex-1" title={image.originalFilename}>
+              {image.originalFilename}
+            </span>
+            {image.visibility === 'public' ? (
+              <Globe className="w-4 h-4 text-green-600 ml-2 flex-shrink-0" title="Public" />
+            ) : (
+              <Lock className="w-4 h-4 text-orange-600 ml-2 flex-shrink-0" title="Private" />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ImageSection = ({ title, images, icon: Icon, iconColor }) => {
+    if (images.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="mb-8">
+        <div className="flex items-center mb-4">
+          <Icon className={`w-5 h-5 mr-2 ${iconColor}`} />
+          <h3 className="text-lg font-semibold text-gray-800">
+            {title}
+          </h3>
+          <span className="ml-2 text-sm text-gray-500">
+            ({images.length} {images.length === 1 ? 'image' : 'images'})
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {images.map((image) => (
+            <ImageCard key={image.id} image={image} />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      {/* Book Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">{book.title}</h1>
+        {book.description && (
+          <p className="text-gray-600">{book.description}</p>
+        )}
+      </div>
+
+      {/* No Images Message */}
+      {book.images.length === 0 && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-600">No images available for this book</p>
+        </div>
+      )}
+
+      {/* Public Images Section */}
+      <ImageSection
+        title="Public Images"
+        images={publicImages}
+        icon={Globe}
+        iconColor="text-green-600"
+      />
+
+      {/* Private Images Section */}
+      <ImageSection
+        title="Private Images"
+        images={privateImages}
+        icon={Lock}
+        iconColor="text-orange-600"
+      />
+
+      {/* Lightbox Modal */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={closeModal}
+        >
+          <button
+            onClick={closeModal}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          
+          <div className="max-w-5xl max-h-full flex flex-col items-center">
+            <img
+              src={selectedImage.url}
+              alt={selectedImage.originalFilename}
+              className="max-w-full max-h-[85vh] object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div className="mt-4 text-white text-center">
+              <p className="text-lg font-medium">{selectedImage.originalFilename}</p>
+              <div className="flex items-center justify-center mt-2">
+                {selectedImage.visibility === 'public' ? (
+                  <>
+                    <Globe className="w-4 h-4 mr-1" />
+                    <span className="text-sm">Public Image</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4 mr-1" />
+                    <span className="text-sm">Private Image</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Example usage with demo data
+const App = () => {
+  // In production, you would get bookId from routing or props
+  const [bookId, setBookId] = useState(1);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <BookImagesDisplay bookId={bookId} />
+    </div>
+  );
+};
+
+export default App;
+
+// src/Controller/Api/BookController.php
+namespace App\Controller\Api;
+
+use App\Entity\Book;
+use App\Entity\BookImage;
+use App\Service\BookImageUploader;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+#[Route('/api/books')]
+#[IsGranted('ROLE_USER')]
+class BookController extends AbstractController
+{
+    public function __construct(
+        private EntityManagerInterface $em,
+        private BookImageUploader $imageUploader
+    ) {
+    }
+
+    #[Route('', name: 'api_book_create', methods: ['POST'])]
+    public function create(Request $request): JsonResponse
+    {
+        $data = json_decode($request->request->get('data'), true);
+        
+        $book = new Book();
+        $book->setTitle($data['title']);
+        $book->setDescription($data['description'] ?? null);
+        $book->setOwner($this->getUser());
+
+        // Handle image uploads
+        $uploadedFiles = $request->files->all();
+        
+        foreach ($uploadedFiles as $key => $file) {
+            // Key format expected: image_0_public, image_1_private, etc.
+            preg_match('/image_(\d+)_(\w+)/', $key, $matches);
+            
+            if ($matches) {
+                $visibility = $matches[2]; // 'public' or 'private'
+                
+                $filename = $this->imageUploader->upload($file, $visibility);
+                
+                $bookImage = new BookImage();
+                $bookImage->setFilename($filename);
+                $bookImage->setOriginalFilename($file->getClientOriginalName());
+                $bookImage->setVisibility($visibility);
+                
+                $book->addImage($bookImage);
+            }
+        }
+
+        $this->em->persist($book);
+        $this->em->flush();
+
+        return $this->json([
+            'id' => $book->getId(),
+            'message' => 'Book created successfully'
+        ], 201);
+    }
+
+    #[Route('/{id}', name: 'api_book_get', methods: ['GET'])]
+    public function get(Book $book): JsonResponse
+    {
+        $images = [];
+        
+        foreach ($book->getImages() as $image) {
+            $imageData = [
+                'id' => $image->getId(),
+                'originalFilename' => $image->getOriginalFilename(),
+                'visibility' => $image->getVisibility(),
+            ];
+
+            // Add URL based on visibility and access rights
+            if ($image->isPublic()) {
+                $imageData['url'] = '/uploads/books/public/' . $image->getFilename();
+            } elseif ($this->isGranted('view', $image)) {
+                $imageData['url'] = $this->generateUrl('book_image_view', ['id' => $image->getId()]);
+            } else {
+                $imageData['url'] = null;
+                $imageData['accessDenied'] = true;
+            }
+
+            $images[] = $imageData;
+        }
+
+        return $this->json([
+            'id' => $book->getId(),
+            'title' => $book->getTitle(),
+            'description' => $book->getDescription(),
+            'images' => $images
+        ]);
+    }
+}
+
+// src/Controller/BookImageController.php
+namespace App\Controller;
+
+use App\Entity\BookImage;
+use App\Repository\BookImageRepository;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+#[Route('/api/book-images')]
+class BookImageController extends AbstractController
+{
+    public function __construct(
+        private string $privateUploadsDirectory
+    ) {
+    }
+
+    #[Route('/{id}/view', name: 'book_image_view', methods: ['GET'])]
+    public function view(BookImage $image): Response
+    {
+        // For public images, redirect to public URL
+        if ($image->isPublic()) {
+            return $this->redirect('/uploads/books/public/' . $image->getFilename());
+        }
+
+        // For private images, check authorization
+        $this->denyAccessUnlessGranted('view', $image);
+
+        $filePath = $this->privateUploadsDirectory . '/' . $image->getFilename();
+
+        if (!file_exists($filePath)) {
+            throw $this->createNotFoundException('Image not found');
+        }
+
+        $response = new BinaryFileResponse($filePath);
+        $response->headers->set('Content-Type', mime_content_type($filePath));
+        
+        return $response;
+    }
+}
+
+# config/services.yaml
+parameters:
+    book_images_public_directory: '%kernel.project_dir%/public/uploads/books/public'
+    book_images_private_directory: '%kernel.project_dir%/var/uploads/books/private'
+
+services:
+    App\Service\BookImageUploader:
+        arguments:
+            $publicUploadsDirectory: '%book_images_public_directory%'
+            $privateUploadsDirectory: '%book_images_private_directory%'
+
+// src/Service/BookImageUploader.php
+namespace App\Service;
+
+use App\Entity\BookImage;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\String\Slugger\SluggerInterface;
+
+class BookImageUploader
+{
+    public function __construct(
+        private string $publicUploadsDirectory,
+        private string $privateUploadsDirectory,
+        private SluggerInterface $slugger
+    ) {
+    }
+
+    public function upload(UploadedFile $file, string $visibility): string
+    {
+        $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $safeFilename = $this->slugger->slug($originalFilename);
+        $fileName = $safeFilename . '-' . uniqid() . '.' . $file->guessExtension();
+
+        $directory = $visibility === BookImage::VISIBILITY_PUBLIC 
+            ? $this->publicUploadsDirectory 
+            : $this->privateUploadsDirectory;
+
+        $file->move($directory, $fileName);
+
+        return $fileName;
+    }
+
+    public function remove(BookImage $image): void
+    {
+        $directory = $image->isPublic() 
+            ? $this->publicUploadsDirectory 
+            : $this->privateUploadsDirectory;
+
+        $filePath = $directory . '/' . $image->getFilename();
+        
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+    }
+
+    public function getPublicPath(BookImage $image): ?string
+    {
+        if (!$image->isPublic()) {
+            return null;
+        }
+        return '/uploads/books/public/' . $image->getFilename();
+    }
+}
