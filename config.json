@@ -454,3 +454,52 @@ class BookImageUploader
         return '/uploads/books/public/' . $image->getFilename();
     }
 }
+
+
+// What if quantity spans multiple price steps?
+// If you want progressive pricing (unlikely but possible):
+public function calculateProgressiveTotal(Product $product, int $quantity): float
+{
+    $total = 0;
+    $remainingQty = $quantity;
+    
+    foreach ($product->getPriceSteps() as $step) {
+        if ($remainingQty <= 0) break;
+        
+        $stepQty = min(
+            $remainingQty, 
+            $step->getMaxQuantity() - $step->getMinQuantity() + 1
+        );
+        
+        $total += $stepQty * $step->getPrice();
+        $remainingQty -= $stepQty;
+    }
+    
+    return $total;
+}
+
+
+
+// In your cart update endpoint
+#[Route('/cart/update-quantity', methods: ['POST'])]
+public function updateQuantity(
+    Request $request,
+    PriceCalculator $priceCalculator
+): JsonResponse {
+    $itemId = $request->request->get('item_id');
+    $newQuantity = $request->request->get('quantity');
+    
+    $cartItem = // ... fetch cart item
+    $cartItem->setQuantity($newQuantity);
+    
+    // Recalculate price
+    $newPrice = $priceCalculator->calculatePrice(
+        $cartItem->getProduct(), 
+        $newQuantity
+    );
+    
+    return $this->json([
+        'unit_price' => $newPrice,
+        'line_total' => $newPrice * $newQuantity
+    ]);
+}
