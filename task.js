@@ -154,3 +154,38 @@ const TaskAlertDialog = ({ open, onClose, alerts }) => {
 };
 
 export default TaskAlertDialog;
+
+ const sampleAlerts = [
+    {
+      id: 1,
+      title: 'Révision de la stratégie marketing Q1',
+      dueDate: '2025-11-28',
+      daysRemaining: 2,
+      priority: 'high',
+      url: '/tasks/1'
+    },
+    {
+      id: 2,
+      title: 'Rapport financier mensuel',
+      dueDate: '2025-11-29',
+      daysRemaining: 3,
+      priority: 'medium',
+      url: '/tasks/2'
+    },
+    {
+      id: 3,
+      title: 'Mise à jour de la documentation technique',
+      dueDate: '2025-11-30',
+      daysRemaining: 4,
+      priority: 'low',
+      url: '/tasks/3'
+    },
+    {
+      id: 4,
+      title: 'Réunion de validation du projet Alpha',
+      dueDate: '2025-11-27',
+      daysRemaining: 1,
+      priority: 'high',
+      url: '/tasks/4'
+    }
+  ];
