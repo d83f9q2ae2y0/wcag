@@ -52,6 +52,26 @@ createTheme({
       default: '#f8faf8',   
       paper: '#ffffff',
     },
+
+       gradients: {
+
+      primary: 'linear-gradient(135deg, #f8faf8 0%, #e8f4f0 50%, #d8f0e8 100%)',
+      
+
+      secondary: 'linear-gradient(180deg, #f1f8f4 0%, #e3f2ed 100%)',
+      
+
+      hero: 'linear-gradient(135deg, #d8f3dc 0%, #b7e4c7 25%, #95d5b2 50%, #74c69d 75%, #52b788 100%)',
+      
+
+      skyToEarth: 'linear-gradient(180deg, #caf0f8 0%, #ade8f4 25%, #d8f3dc 75%, #b7e4c7 100%)',
+      
+
+      radial: 'radial-gradient(circle at top right, #f1f8f4 0%, #ffffff 60%)',
+      
+
+      darkForest: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
+    },
     
     text: {
       primary: '#1b4332',   
